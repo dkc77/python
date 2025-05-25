@@ -1,7 +1,7 @@
 import requests
 import os
 
-save_dir = r"C:\Users\DominikKacprzak\OneDrive - Dominik Kacprzak Consulting\Projekt Data\Sample"
+save_dir = r"C:\Users\DominikKacprzak\OneDrive - Dominik Kacprzak Consulting\Projekt Data\Waluty\Raw\NBP"
 os.makedirs(save_dir, exist_ok=True)
 
 start_year = 2020
