@@ -47,9 +47,10 @@ for filename in os.listdir(src_folder):
     df_melted['Target Currency'] = 'PLN'
 
     def get_currency_full_name(code):
-        try:
-            return pycountry.currencies.get(alpha_3=code).name
-        except:
+        currency = pycountry.currencies.get(alpha_3=code)
+        if currency is not None:
+            return currency.name
+        else:
             return 'Unknown'
 
     # After you process df_melted['Currency'], add the full name column

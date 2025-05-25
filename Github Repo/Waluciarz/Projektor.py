@@ -42,8 +42,9 @@ for currency_name in df['Currency Full Name'].unique():
         # Forecast next 5 days
         forecast = model_fit.get_forecast(steps=5)
         forecast_index = pd.date_range(y.index[-1] + pd.Timedelta(days=1), periods=5, freq='D')
+        # Get forecast values and confidence intervals
         forecast_mean = forecast.predicted_mean
-        forecast_ci = forecast.conf_int(alpha=0.05)  # 95% confidence interval
+        forecast_ci = forecast.conf_int(alpha=0.02)  # 98% confidence interval
 
         # Prepare results
         forecast_df = pd.DataFrame({
