@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import shutil
+import pycountry
 
 src_folder = r"C:\Users\DominikKacprzak\OneDrive - Dominik Kacprzak Consulting\Projekt Data\Waluty\Raw\NBP"
 dst_folder = r"C:\Users\DominikKacprzak\OneDrive - Dominik Kacprzak Consulting\Projekt Data\Waluty\Converter"
@@ -45,8 +46,17 @@ for filename in os.listdir(src_folder):
     # Add new column: Target Currency (string, "PLN")
     df_melted['Target Currency'] = 'PLN'
 
-    # Reorder columns to: Date, Currency, Factor, Currency Rate, Target Currency
-    df_melted = df_melted[['Date', 'Currency', 'Factor', 'Currency Rate', 'Target Currency']]
+    def get_currency_full_name(code):
+        try:
+            return pycountry.currencies.get(alpha_3=code).name
+        except:
+            return 'Unknown'
+
+    # After you process df_melted['Currency'], add the full name column
+    df_melted['Currency Full Name'] = df_melted['Currency'].apply(get_currency_full_name)
+
+    # Reorder columns to include the new column
+    df_melted = df_melted[['Date', 'Currency', 'Currency Full Name', 'Factor', 'Currency Rate', 'Target Currency']]
 
     # Save transposed data (overwrite file)
     df_melted.to_csv(dst_path, index=False)

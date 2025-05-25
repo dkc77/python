@@ -33,8 +33,13 @@ corr_pairs = corr_pairs[corr_pairs['Currency_A'] != corr_pairs['Currency_B']]
 corr_pairs['pair'] = corr_pairs.apply(lambda row: '-'.join(sorted([row['Currency_A'], row['Currency_B']])), axis=1)
 corr_pairs = corr_pairs.drop_duplicates(subset=['pair'])
 
+# Map currency codes to full names using the original dataframe
+currency_name_map = df.set_index('Currency')['Currency Full Name'].to_dict()
+corr_pairs['Currency_A_Name'] = corr_pairs['Currency_A'].map(currency_name_map)
+corr_pairs['Currency_B_Name'] = corr_pairs['Currency_B'].map(currency_name_map)
+
 # Get top 10 most correlated pairs (absolute value, descending)
 top10 = corr_pairs.reindex(corr_pairs['Correlation'].abs().sort_values(ascending=False).index).head(10)
 
 print("Top 10 most correlated currency pairs for 2025:")
-print(top10[['Currency_A', 'Currency_B', 'Correlation']])
+print(top10[['Currency_A_Name', 'Currency_B_Name', 'Correlation']])
