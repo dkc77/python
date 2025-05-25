@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import os
 
+#Test
 # URL of the page with CSV/XLS links
 url = "https://nbp.pl/statystyka-i-sprawozdawczosc/kursy/archiwum-tabela-a-csv-xls/"
 
@@ -14,13 +15,18 @@ soup = BeautifulSoup(response.text, "html.parser")
 
 # Find all links to CSV files
 csv_links = []
+from bs4.element import Tag
+
 for a in soup.find_all("a", href=True):
-    href = a["href"]
-    if href.lower().endswith(".csv"):
-        # Make sure the link is absolute
-        if not href.startswith("http"):
-            href = "https://nbp.pl" + href
-        csv_links.append(href)
+    if isinstance(a, Tag):
+        href = a.get("href")
+        if href:
+            href_str = str(href)
+            if href_str.lower().endswith(".csv"):
+                # Make sure the link is absolute
+                if not href_str.startswith("http"):
+                    href_str = "https://nbp.pl" + href_str
+                csv_links.append(href_str)
 
 # Download CSV files
 os.makedirs("nbp_csv", exist_ok=True)
