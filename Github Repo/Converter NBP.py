@@ -10,7 +10,9 @@ os.makedirs(dst_folder, exist_ok=True)
 
 for filename in os.listdir(src_folder):
     src_path = os.path.join(src_folder, filename)
-    dst_path = os.path.join(dst_folder, filename)
+    # Change destination filename to start with 'Converted_'
+    dst_filename = f"Converted_{filename}"
+    dst_path = os.path.join(dst_folder, dst_filename)
     
     # Copy file to destination
     shutil.copy2(src_path, dst_path)
@@ -32,12 +34,16 @@ for filename in os.listdir(src_folder):
     df_melted['Currency Rate'] = pd.to_numeric(df_melted['Currency Rate'].str.replace(',', '.'), errors='coerce')
     df_melted = df_melted.dropna(subset=['Currency Rate'])
     
-    # Remove digits from Currency column, keep only currency name
-    # df_melted['Currency'] = df_melted['Currency'].str.replace(r'\d+', '', regex=True).str.strip()
+    # Extract digits from Currency column to Factor, and keep only currency name in Currency
+    df_melted['Factor'] = df_melted['Currency'].str.extract(r'(\d+)', expand=False).astype(float)
+    df_melted['Factor'] = df_melted['Factor'].fillna(1.0)
+    df_melted['Currency'] = df_melted['Currency'].str.replace(r'\d+', '', regex=True).str.strip()
 
-    # Add new columns: Target Currency (string, "PLN") and Target Value Currency (decimal, 1)
+    # Add new column: Target Currency (string, "PLN")
     df_melted['Target Currency'] = 'PLN'
-    df_melted['Target Value Currency'] = 1.0
+
+    # Reorder columns to: Date, Currency, Factor, Currency Rate, Target Currency
+    df_melted = df_melted[['Date', 'Currency', 'Factor', 'Currency Rate', 'Target Currency']]
 
     # Save transposed data (overwrite file)
     df_melted.to_csv(dst_path, index=False)
