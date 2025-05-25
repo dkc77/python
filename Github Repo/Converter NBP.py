@@ -4,13 +4,17 @@ import shutil
 
 src_folder = r"C:\Users\DominikKacprzak\OneDrive - Dominik Kacprzak Consulting\Projekt Data\Waluty\Raw\NBP"
 dst_folder = r"C:\Users\DominikKacprzak\OneDrive - Dominik Kacprzak Consulting\Projekt Data\Waluty\Converter"
+consolidated_folder = r"C:\Users\DominikKacprzak\OneDrive - Dominik Kacprzak Consulting\Projekt Data\Waluty\Silver Currency"
+consolidated_file = os.path.join(consolidated_folder, "Consolidated_Currency.csv")
 
-# Ensure destination folder exists
+# Ensure destination folders exist
 os.makedirs(dst_folder, exist_ok=True)
+os.makedirs(consolidated_folder, exist_ok=True)
+
+all_data = []
 
 for filename in os.listdir(src_folder):
     src_path = os.path.join(src_folder, filename)
-    # Change destination filename to start with 'Converted_'
     dst_filename = f"Converted_{filename}"
     dst_path = os.path.join(dst_folder, dst_filename)
     
@@ -19,7 +23,6 @@ for filename in os.listdir(src_folder):
     
     # Read and transpose data
     df = pd.read_csv(dst_path, encoding="cp1250", delimiter=";")
-    # Assume first column is date, rest are currencies
     df_melted = df.melt(id_vars=[df.columns[0]], var_name='Currency', value_name='Currency Rate')
     df_melted.rename(columns={df.columns[0]: 'Date'}, inplace=True)
     
@@ -47,5 +50,10 @@ for filename in os.listdir(src_folder):
 
     # Save transposed data (overwrite file)
     df_melted.to_csv(dst_path, index=False)
+    all_data.append(df_melted)
 
-print("Files copied and transposed successfully.")
+# Concatenate all DataFrames and save as one CSV without repeating headers
+consolidated_df = pd.concat(all_data, ignore_index=True)
+consolidated_df.to_csv(consolidated_file, index=False)
+
+print("Files copied, transposed, and consolidated successfully.")
