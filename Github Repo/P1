@@ -28,7 +28,7 @@ for a in soup.find_all("a", href=True):
                     href_str = "https://nbp.pl" + href_str
                 csv_links.append(href_str)
 
-# Download CSV files
+# Download CSV files1
 os.makedirs("nbp_csv", exist_ok=True)
 for link in csv_links:
     filename = os.path.join("nbp_csv", link.split("/")[-1])
