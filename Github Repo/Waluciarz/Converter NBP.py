@@ -55,8 +55,11 @@ for filename in os.listdir(src_folder):
     # After you process df_melted['Currency'], add the full name column
     df_melted['Currency Full Name'] = df_melted['Currency'].apply(get_currency_full_name)
 
-    # Reorder columns to include the new column
-    df_melted = df_melted[['Date', 'Currency', 'Currency Full Name', 'Factor', 'Currency Rate', 'Target Currency']]
+    # Add new column: Version with constant value 'Historical'
+    df_melted['Version'] = 'Historical'
+
+    # Reorder columns to include the new columns
+    df_melted = df_melted[['Date', 'Currency', 'Currency Full Name', 'Factor', 'Currency Rate', 'Target Currency', 'Version']]
 
     # Save transposed data (overwrite file)
     df_melted.to_csv(dst_path, index=False)

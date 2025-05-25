@@ -7,6 +7,9 @@ file_path = r"C:\Users\DominikKacprzak\OneDrive - Dominik Kacprzak Consulting\Pr
 # Read the data
 df = pd.read_csv(file_path, parse_dates=['Date'])
 
+# Get version info (assumes all rows have the same version)
+version = df['Version'].iloc[0] if 'Version' in df.columns else 'Unknown'
+
 # List available currency names
 currency_names = df['Currency Full Name'].unique()
 print("Available currencies:", ', '.join(currency_names))
@@ -19,7 +22,7 @@ for currency_name in currency_names:
 
 plt.xlabel('Date')
 plt.ylabel('Currency Rate')
-plt.title('Currency Rates Over Time')
+plt.title(f'Currency Rates Over Time\nVersion: {version}')
 plt.legend()
 plt.tight_layout()
 plt.show()
