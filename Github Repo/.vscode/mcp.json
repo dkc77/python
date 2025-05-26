@@ -1,8 +1,11 @@
 {
   "servers": {
     "datapilot": {
-      "url": "http://localhost:7701/sse",
+      "url": "http://localhost:7700/sse",
       "type": "sse"
+    },
+    "my-mcp-server-2f503865": {
+      "url": "http://localhost:7700/sse"
     }
   }
 }
