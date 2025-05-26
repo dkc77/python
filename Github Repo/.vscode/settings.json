@@ -1,5 +1,10 @@
 {
     "git.alwaysShowStagedChangesResourceGroup": true,
     "git.alwaysSignOff": true,
-    "git.autofetch": true
+    "git.autofetch": true,
+    "githubPullRequests.remotes": [
+        "origin",
+        "upstream",
+        "https://github.com/dkc77/python.git"
+    ]
 }
