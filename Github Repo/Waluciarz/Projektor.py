@@ -1,20 +1,15 @@
 import pandas as pd
-import numpy as np
-from statsmodels.tsa.statespace.sarimax import SARIMAX
-import matplotlib.pyplot as plt
+from prophet import Prophet
 from datetime import datetime
 import os
 import warnings
-
-# Optional: Uncomment if you want a progress bar
-# from tqdm import tqdm
 
 # Path to consolidated data
 file_path = r"C:\Users\DominikKacprzak\OneDrive - Dominik Kacprzak Consulting\Projekt Data\Waluty\Silver Currency\Consolidated_Currency.csv"
 
 # Output folder and file name
 today_str = datetime.now().strftime("%Y-%m-%d")
-output_folder = r"C:\Users\DominikKacprzak\OneDrive - Dominik Kacprzak Consulting\Projekt Data\Waluty\Silver Currency"
+output_folder = r"C:\Users\DominikKacprzak\OneDrive - Dominik Kacprzak Consulting\Projekt Data\Waluty\Forecaster"
 output_file = f"Forecast_{today_str}.csv"
 output_path = os.path.join(output_folder, output_file)
 
@@ -27,34 +22,32 @@ df = pd.read_csv(file_path, parse_dates=['Date'])
 # Prepare list to collect all forecasts
 all_forecasts = []
 
-# Use tqdm for progress bar if desired
 currency_list = df['Currency Full Name'].unique()
-# for currency_name in tqdm(currency_list, desc="Forecasting"):  # Uncomment for progress bar
 for currency_name in currency_list:
     currency_df = df[df['Currency Full Name'] == currency_name].sort_values('Date')
     if currency_df.empty or len(currency_df) < 10:
         continue
 
-    currency_df = currency_df.set_index('Date')
-    y = currency_df['Currency Rate']
+    # Prophet expects columns: ds (date), y (value)
+    prophet_df = currency_df.rename(columns={'Date': 'ds', 'Currency Rate': 'y'})[['ds', 'y']]
 
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            model = SARIMAX(y, order=(1,1,1), enforce_stationarity=False, enforce_invertibility=False)
-            model_fit = model.fit(disp=False, maxiter=50)  # Limit iterations for speed
+            model = Prophet()
+            model.fit(prophet_df)
 
-        forecast = model_fit.get_forecast(steps=5)
-        forecast_index = pd.date_range(y.index[-1] + pd.Timedelta(days=1), periods=5, freq='D')
-        forecast_mean = forecast.predicted_mean
-        forecast_ci = forecast.conf_int(alpha=0.02)  # 98% confidence interval
+        # Forecast next 5 days
+        future = model.make_future_dataframe(periods=5, freq='D')
+        forecast = model.predict(future)
+        forecast_tail = forecast.tail(5)  # Only the forecasted days
 
         forecast_df = pd.DataFrame({
             'Currency Full Name': currency_name,
-            'Date': forecast_index,
-            'Forecast': forecast_mean.values,
-            'Lower 95%': forecast_ci.iloc[:, 0].values,
-            'Upper 95%': forecast_ci.iloc[:, 1].values,
+            'Date': forecast_tail['ds'].values,
+            'Forecast': forecast_tail['yhat'].values,
+            'Lower 95%': forecast_tail['yhat_lower'].values,
+            'Upper 95%': forecast_tail['yhat_upper'].values,
             'Probability': [0.95]*5,
             'Version': [os.path.splitext(os.path.basename(output_file))[0]]*5
         })

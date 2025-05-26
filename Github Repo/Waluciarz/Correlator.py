@@ -1,7 +1,16 @@
 import pandas as pd
+import os
 
 # Path to the consolidated file
 file_path = r"C:\Users\DominikKacprzak\OneDrive - Dominik Kacprzak Consulting\Projekt Data\Waluty\Silver Currency\Consolidated_Currency.csv"
+
+# Output folder and file name
+output_folder = r"C:\Users\DominikKacprzak\OneDrive - Dominik Kacprzak Consulting\Projekt Data\Waluty\Korelator"
+output_file = "Correlation_2025.csv"
+output_path = os.path.join(output_folder, output_file)
+
+# Ensure output directory exists
+os.makedirs(output_folder, exist_ok=True)
 
 # Read the data
 df = pd.read_csv(file_path, parse_dates=['Date'])
@@ -38,8 +47,17 @@ currency_name_map = df.set_index('Currency')['Currency Full Name'].to_dict()
 corr_pairs['Currency_A_Name'] = corr_pairs['Currency_A'].map(currency_name_map)
 corr_pairs['Currency_B_Name'] = corr_pairs['Currency_B'].map(currency_name_map)
 
+# Map currency codes to full names using the original dataframe
+currency_name_map = df.set_index('Currency')['Currency Full Name'].to_dict()
+corr_pairs['Currency_A_Name'] = corr_pairs['Currency_A'].map(currency_name_map)
+corr_pairs['Currency_B_Name'] = corr_pairs['Currency_B'].map(currency_name_map)
+
 # Get top 10 most correlated pairs (absolute value, descending)
 top10 = corr_pairs.reindex(corr_pairs['Correlation'].abs().sort_values(ascending=False).index).head(10)
 
 print("Top 10 most correlated currency pairs for 2025:")
 print(top10[['Currency_A_Name', 'Currency_B_Name', 'Correlation']])
+
+# Save the results to a CSV file
+top10.to_csv(output_path, index=False)
+print(f"Correlation results saved to {output_path}")
