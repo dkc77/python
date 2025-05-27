@@ -27,51 +27,28 @@ function z_fi_zrfi028n.
 *"      IT_BKLAS STRUCTURE  FAGL_MM_RANGE_BKLAS OPTIONAL
 *"      IT_MATKL STRUCTURE  MATKL_RAN OPTIONAL
 *"      ET_OUTPUT STRUCTURE  ZRFI028_ALV
-*"      ET_TCKH1 STRUCTURE  TCKH1 OPTIONAL
+*"----------------------------------------------------------------------
+*"      ET_OUTPUT STRUCTURE  ZBW_RFI028_EXTRACT  " <<< CHANGED
 *"----------------------------------------------------------------------
 
-  types: begin of lty_hlp_calctab,
-           matnr type objnum,
-         end of lty_hlp_calctab,
-         begin of lty_cawnt,
-           atinn type atinn,
-           atzhl type atzhl,
-           atwtb type atwtb,
-         end of lty_cawnt,
-         begin of lty_ausp,
-           objek type objnum,
-           atinn type atinn,
-           atwrt type atwrt,
-           atwtb type atwtb,
-         end of lty_ausp,
-         begin of lty_mvgr,
-           mvgr  type mvgr1,
-           bezei type bezei40,
-         end of lty_mvgr,
-         lt_mvgr type standard table of lty_mvgr,
-         begin of lty_tvbo,
-           bonus type tvbot-bonus,
-           vtext type char20,
-         end of lty_tvbo,
-         begin of lty_arbpl,
+* Assume ty_calctab (for i_calctab, gs_calctab) is defined globally
+* and includes: vtweg TYPE vtweg, bwkey TYPE bwkey,
+* and all fields selected from KEKO, MARC, MARA, MBEW, KEPH, CKIS.
+
+  TYPES: BEGIN OF lty_arbpl,
            plnty type plas-plnty,
            plnnr type plas-plnnr,
            plnal type plas-plnal,
            datuv type plpo-datuv,
            arbpl type crhd-arbpl,
            datub type plpod-datub,
-         end of lty_arbpl,
-         begin of lty_mvke,
+         END OF lty_arbpl.
+
+  TYPES: BEGIN OF lty_mvke,
            matnr type matnr,
            vkorg type vkorg,
-           mvgr1 type mvgr1,
-           mvgr2 type mvgr2,
-           mvgr3 type mvgr3,
-           mvgr4 type mvgr4,
-           mvgr5 type mvgr5,
-           bonus type bonus,
-           ktgrm type ktgrm,
-         end of lty_mvke.
+           vtweg TYPE vtweg, " <<< ADDED
+         END OF lty_mvke.
 
   data: lr_lvorm                  type standard table of range_c1,
         lr_maabc                  type standard table of range_c1,
@@ -79,55 +56,30 @@ function z_fi_zrfi028n.
         ls_maabc                  type range_c1,
         lv_tabix                  like sy-tabix,
         lv_losgr                  like keko-losgr,
-        lv_felt(30),
-        lv_dc_segment             type atinn,
-        lv_dc_season              type atinn,
-        lv_dc_prisstr             type atinn,
-        lv_dc_noglehul            type atinn,
-        lv_dc_varegruppe          type atinn,
-        lv_dc_naeringsdeklaration type atinn,
-        lt_kendetegn              type standard table of lty_ausp,
-        ls_kendetegn              type lty_ausp,
-        lt_hlp_calctab            type standard table of lty_hlp_calctab,
-        ls_hlp_calctab            type lty_hlp_calctab,
-        lt_cawnt                  type standard table of lty_cawnt,
-        ls_cawnt                  type lty_cawnt,
-        lt_marm                   type standard table of marm,
-        ls_marm                   type marm,
-        lt_tvkm                   type standard table of tvkmt,
-        ls_tvkm                   type tvkmt,
-        lt_tvbo                   type standard table of lty_tvbo,
-        ls_tvbo                   type lty_tvbo,
-        lv_objek                  type objnr,
-        lv_mvgr                   type mvgr1,
-        lt_mvgr1                  type standard table of lty_mvgr,
-        lt_mvgr2                  type standard table of lty_mvgr,
-        lt_mvgr3                  type standard table of lty_mvgr,
-        lt_mvgr4                  type standard table of lty_mvgr,
-        lt_mvgr5                  type standard table of lty_mvgr,
-        lv_mvgr_name              type char10 value 'lt_mvgr1',
-        lv_tvm                    type char5 value 'tvm1t',
-        lv_mvgr1_bezei            type char11 value 'mvgr1 bezei',
-        lv_mvgr_key               type char25 value 'mvgr1 = <mvgr_tab>-mvgr',
-        lv_bezei                  type char20 value 'GS_OUTPUT-BEZEI1',
-        l_atzhl                   type atzhl,
+        lv_felt(30),        
         lv_elehk                  type ck_elesmhk,
         lt_arbpl                  type standard table of lty_arbpl,
-        lt_calctab                type standard table of ty_calctab,
+        lt_calctab                type standard table of ty_calctab, " Used for intermediate steps
         lt_mvke                   type hashed table of lty_mvke
-                                       with unique key matnr,
+                                       with unique key matnr, " Assuming one entry per MATNR for a given I_VKORG
         ls_arbpl                  like line of lt_arbpl.
 
-  field-symbols: <kendetegn> type lty_ausp,
-                 <mvgr>      type lty_mvgr,
-                 <mvgr_tab>  type lt_mvgr,
-                 <mvgr_key>  type mvgr1,
-                 <bezei>     type bezei20,
-                 <ls_mvke>   type lty_mvke.
+  DATA: gs_output TYPE zbw_rfi028_extract. " <<< New output structure work area
+
+  field-symbols: <ls_mvke>   type lty_mvke.
   field-symbols: <ls_prev>        like line of lt_arbpl,
                  <ls_arbpl_plnnr> like line of lt_arbpl,
                  <ls_arbpl_plnal> like line of lt_arbpl,
                  <ls_arbpl_datuv> like line of lt_arbpl.
+  FIELD-SYMBOLS: <calctab>     TYPE ty_calctab. " For loop at i_calctab
+  FIELD-SYMBOLS: <f>           TYPE any.
+  FIELD-SYMBOLS: <kpf_dec>     TYPE any. " For GV_KST_DEC<g_decima>
+  FIELD-SYMBOLS: <sum_kpf_dec> TYPE any. " For GS_SUMTAB-KPF_DEC<g_decima>
+  FIELD-SYMBOLS: <output_kst>  TYPE any. " For GS_OUTPUT-KSTnnn
+  FIELD-SYMBOLS: <tckh3>       TYPE tckh3.
+  FIELD-SYMBOLS: <tckh2>       TYPE tckh2.
+  FIELD-SYMBOLS: <ls_00192>    TYPE ypar_s_values.
+
 
 *-----------------------------------------------------------------
 * Init values
@@ -195,11 +147,6 @@ function z_fi_zrfi028n.
     where ktopl = '0001'
       and elehk = lv_elehk
     order by kstav kstab.
-*   Omkostningselementer - tekster
-  select * from tckh1 into table gi_tckh1 up to c_omkelem rows
-    where spras = sy-langu
-    and elehk = lv_elehk.
-*    sort gi_tckh1 by elemt. "HANA issue
   if i_noslet = 'X'.
     ls_lvorm-sign   = 'I'.
     ls_lvorm-option = 'EQ'.
@@ -218,7 +165,7 @@ function z_fi_zrfi028n.
 * Only diff in below SELECT statement is  AND   keko~elehk = gv_elehk / AND   keko~elehkns = gv_elehkns
     when i_main.
       select
-             keko~fwaer_kpf keko~werks
+             keko~fwaer_kpf keko~werks keko~bwkey " <<< ADDED bwkey
              keko~klvar keko~tvers keko~matnr
              mara~/cwm/xcwmat as kzwsm mara~meins mbew~peinh
              marc~maabc keko~kadky keko~losgr ckis~kstar ckis~wrtfw_kpf
@@ -279,7 +226,7 @@ function z_fi_zrfi028n.
              and   keph~keart eq gv_keart.
     when i_aux.
       select
-             keko~fwaer_kpf keko~werks
+             keko~fwaer_kpf keko~werks keko~bwkey " <<< ADDED bwkey
              keko~klvar keko~tvers keko~matnr
              mara~/cwm/xcwmat as kzwsm mara~meins mbew~peinh
              marc~maabc keko~kadky keko~losgr ckis~kstar ckis~wrtfw_kpf
@@ -354,78 +301,77 @@ function z_fi_zrfi028n.
   if i_calctab[] is not initial.
     lt_calctab[] = i_calctab[].
     delete lt_calctab where plnty is initial
-                         or plnnr is initial.
-    sort lt_calctab by plnty
-                       plnnr.
-    delete adjacent duplicates from lt_calctab
-                          comparing plnty
-                                    plnnr.
-    select plas~plnty
-           plas~plnnr
-           plas~plnal
-           plpo~datuv
-           crhd~arbpl
-      into table lt_arbpl
-      from plas
-      join plpo on plas~plnty = plpo~plnty
-               and plas~plnnr = plpo~plnnr
-               and plas~plnkn = plpo~plnkn
-      join crhd on plpo~arbid = crhd~objid
-       for all entries in lt_calctab
-     where plas~plnty eq lt_calctab-plnty
-       and plas~plnnr eq lt_calctab-plnnr
-       and plpo~vornr eq '0100'
-       and crhd~arbpl in it_arbpl
-       and plpo~loekz eq space.
-    sort lt_arbpl.
-* for at lave det lettere at finde det rigtige workcenter ud fra en dato,
-* laves der et DATUB felt i LT_ARBPL.
-    loop at lt_arbpl assigning <ls_arbpl_plnnr> group by <ls_arbpl_plnnr>-plnnr.
-      loop at group <ls_arbpl_plnnr> assigning <ls_arbpl_plnal> group by <ls_arbpl_plnal>-plnal.
-        loop at group <ls_arbpl_plnal> assigning <ls_arbpl_datuv>.
-          if <ls_prev> is assigned.
-            <ls_prev>-datub =  <ls_arbpl_datuv>-datuv - 1.
+                         or plnnr is initial.    
+    if lt_calctab[] is not initial.
+      sort lt_calctab by plnty
+                        plnnr.
+      delete adjacent duplicates from lt_calctab
+                            comparing plnty
+                                      plnnr.
+      select plas~plnty
+            plas~plnnr
+            plas~plnal
+            plpo~datuv
+            crhd~arbpl
+        into table lt_arbpl
+        from plas
+        join plpo on plas~plnty = plpo~plnty
+                and plas~plnnr = plpo~plnnr
+                and plas~plnkn = plpo~plnkn
+        join crhd on plpo~arbid = crhd~objid
+        for all entries in lt_calctab
+        where plas~plnty eq lt_calctab-plnty
+        and plas~plnnr eq lt_calctab-plnnr
+        and plpo~vornr eq '0100' "Assuming this is relevant
+        and crhd~arbpl in it_arbpl
+        and plpo~loekz eq space.
+      sort lt_arbpl.
+*   for at lave det lettere at finde det rigtige workcenter ud fra en dato,
+*   laves der et DATUB felt i LT_ARBPL.
+      loop at lt_arbpl assigning <ls_arbpl_plnnr> group by <ls_arbpl_plnnr>-plnnr.
+        loop at group <ls_arbpl_plnnr> assigning <ls_arbpl_plnal> group by <ls_arbpl_plnal>-plnal.
+          loop at group <ls_arbpl_plnal> assigning <ls_arbpl_datuv>.
+            if <ls_prev> is assigned.
+              <ls_prev>-datub =  <ls_arbpl_datuv>-datuv - 1.
+            endif.
+            assign <ls_arbpl_datuv> to <ls_prev>.
           endif.
-          assign <ls_arbpl_datuv> to <ls_prev>.
+          if sy-subrc eq 0 and <ls_arbpl_datuv> is assigned. "Check if <ls_arbpl_datuv> is assigned
+            <ls_arbpl_datuv>-datub = '99991231'. "Update the date on the last record
+          endif.
+          unassign <ls_prev>.
         endloop.
-        if sy-subrc eq 0.
-          <ls_arbpl_datuv>-datub = '99991231'. "Update the date on the last record
-        endif.
-        unassign <ls_prev>.
       endloop.
-    endloop.
-
+    endif.
   endif.
 *   Læs salgsdata til materiale
   if  i_vkorg is not initial and
       i_calctab[] is not initial.
-
+    data: lt_mvke_temp type standard table of lty_mvke.
     lt_calctab[] = i_calctab[].
     sort lt_calctab by matnr.
     delete adjacent duplicates from lt_calctab
                           comparing matnr.
-
     select matnr
            vkorg
-           mvgr1
-           mvgr2
-           mvgr3
-           mvgr4
-           mvgr5
-           bonus
-           ktgrm
+           vtweg " <<< ADDED
       from mvke
-      into table lt_mvke
+      into table lt_mvke_temp
        for all entries in lt_calctab
      where matnr =  lt_calctab-matnr
        and vkorg =  i_vkorg
-       and bonus in it_bonus
-       and mvgr1 in it_mvgr1
-       and mvgr2 in it_mvgr2
-       and mvgr3 in it_mvgr3
-       and mvgr4 in it_mvgr4
-       and mvgr5 in it_mvgr5.
-
+*      AND bonus IN it_bonus  " Filters removed as fields not in output
+*      AND mvgr1 IN it_mvgr1
+*      AND mvgr2 IN it_mvgr2
+*      AND mvgr3 IN it_mvgr3
+*      AND mvgr4 IN it_mvgr4
+*      AND mvgr5 IN it_mvgr5
+       .
+    if lt_mvke_temp is not initial.
+      sort lt_mvke_temp by matnr.
+      delete adjacent duplicates from lt_mvke_temp comparing matnr. " Keep one VTWEG per MATNR for this VKORG
+      lt_mvke[] = lt_mvke_temp[]. " Populate hashed table
+    endif.
   endif.
 
 *   Relevante Omkostningselementer for selektionen
@@ -433,273 +379,78 @@ function z_fi_zrfi028n.
   loop at i_calctab assigning <calctab>.
 
     if i_vkorg is not initial.
-
       read table lt_mvke
          assigning <ls_mvke>
          with table key matnr = <calctab>-matnr.
-
       if sy-subrc = 0.
-        move-corresponding <ls_mvke> to <calctab>.
+        <calctab>-vkorg = <ls_mvke>-vkorg. " Already set if I_VKORG is used for selection
+        <calctab>-vtweg = <ls_mvke>-vtweg.
       else.
-        delete i_calctab.
+        " If I_VKORG is set, and no sales data, original code deleted the entry.
+        " This is a critical business decision. If material should be excluded:
+        delete i_calctab. " Modifies the table being looped over.
         continue.
+        " Alternatively, clear sales-specific fields if the material should still be processed:
+        " CLEAR: <calctab>-vkorg, <calctab>-vtweg.
       endif.
-
     endif.
 
     if <calctab>-plnnr is not initial.
       read table gt_00192 assigning <ls_00192> with key key1 = <calctab>-werks.
       if sy-subrc eq 0.
+        clear ls_arbpl. " Ensure ls_arbpl is cleared before loop
         loop at lt_arbpl into ls_arbpl where plnty = <calctab>-plnty
                                          and plnnr = <calctab>-plnnr
                                          and plnal = <ls_00192>-key2
                                          and datuv <= <calctab>-kadky
                                          and datub >=  <calctab>-kadky.
-
-        endloop.
-        if sy-subrc eq 0.
           <calctab>-arbpl = ls_arbpl-arbpl.
-        else.
+          exit. " Found one
+        endloop.
+        if sy-subrc <> 0. " Not found with kadky, try aldat
+          clear ls_arbpl.
           loop at lt_arbpl into ls_arbpl where plnty = <calctab>-plnty
                                            and plnnr = <calctab>-plnnr
                                            and plnal = <ls_00192>-key2
                                            and datuv <= <calctab>-aldat
                                            and datub >=  <calctab>-aldat.
-
-          endloop.
-          if sy-subrc eq 0.
             <calctab>-arbpl = ls_arbpl-arbpl.
-          endif.
+            exit. " Found one
+          endloop.
         endif.
       endif.
-    endif.
-
-    move-corresponding <calctab> to ls_hlp_calctab.
-    append ls_hlp_calctab to lt_hlp_calctab.
-    do 5 times varying lv_mvgr from <calctab>-mvgr1 next <calctab>-mvgr2.
-      check not lv_mvgr is initial.
-      lv_mvgr_name+7(1) = sy-index.
-      assign (lv_mvgr_name) to <mvgr_tab>.
-      append initial line to <mvgr_tab> assigning <mvgr>.
-      <mvgr>-mvgr = lv_mvgr.
-    enddo.
-    if not <calctab>-bonus is initial.
-      ls_tvbo-bonus = <calctab>-bonus.
-      append ls_tvbo to lt_tvbo.
     endif.
   endloop.
-  sort lt_tvbo.
-  delete adjacent duplicates from lt_tvbo.
-  sort lt_hlp_calctab.
-  delete adjacent duplicates from lt_hlp_calctab.
-  do 5 times.
-    lv_tvm+3(1) = sy-index.
-    lv_mvgr1_bezei+4(1) = sy-index.
-    lv_mvgr_name+7(1) = sy-index.
-    lv_mvgr_key+4(1) = sy-index.
-    assign (lv_mvgr_name) to <mvgr_tab>.
-    check not <mvgr_tab> is initial.
-    sort <mvgr_tab>.
-    delete adjacent duplicates from <mvgr_tab>.
-    select (lv_mvgr1_bezei) into table <mvgr_tab>
-        from (lv_tvm)
-        for all entries in <mvgr_tab>
-        where (lv_mvgr_key)
-        and   spras = sy-langu.
-  enddo.
 
-  select single atinn into lv_dc_season
-      from cabn
-      where atnam = 'DC_SEASON'.
-  select single atinn into lv_dc_segment
-      from cabn
-      where atnam = 'DC_SEGMENT'.
-  select single atinn into lv_dc_prisstr
-      from cabn
-      where atnam = 'DC_PRISSTRATEGI'.
-  select single atinn into lv_dc_noglehul
-      from cabn
-      where atnam = 'DC_NOGLEHUL'.
-  select single atinn into lv_dc_varegruppe
-      from cabn
-      where atnam = 'DC_VAREGRUPPE'.
-  select single atinn into lv_dc_naeringsdeklaration
-      from cabn
-      where atnam = 'DC_NAERINGSDEKLARATION'.
-  select atinn atzhl atwtb into corresponding fields of table lt_cawnt
-      from cawnt
-      where spras = sy-langu
-      and ( atinn = lv_dc_segment
-      or    atinn = lv_dc_season
-      or    atinn = lv_dc_prisstr
-      or    atinn = lv_dc_noglehul
-      or    atinn = lv_dc_varegruppe
-      or    atinn = lv_dc_naeringsdeklaration ).
-  if not lt_hlp_calctab[] is initial.
-    select objek atinn atwrt into corresponding fields of table lt_kendetegn
-        from ausp
-        for all entries in lt_hlp_calctab
-        where objek = lt_hlp_calctab-matnr
-        and ( atinn = lv_dc_segment
-        or    atinn = lv_dc_season
-        or    atinn = lv_dc_prisstr
-        or    atinn = lv_dc_noglehul
-        or    atinn = lv_dc_varegruppe
-        or    atinn = lv_dc_naeringsdeklaration ).
-    sort lt_kendetegn by objek atinn.
-    loop at lt_kendetegn assigning <kendetegn>.
-      select single atzhl from cawn into l_atzhl where atinn = <kendetegn>-atinn
-                                                   and atwrt = <kendetegn>-atwrt.
-      if sy-subrc = 0.
-        read table lt_cawnt into ls_cawnt with key atinn = <kendetegn>-atinn
-                                                    atzhl = l_atzhl.
-        if sy-subrc = 0.
-          <kendetegn>-atwtb = ls_cawnt-atwtb.
-        endif.
-      endif.
-    endloop.
-
-    select * into corresponding fields of table lt_marm
-      from marm
-      for all entries in  i_calctab
-      where matnr = i_calctab-matnr.
-
-    select * into corresponding fields of table lt_tvkm
-        from tvkmt
-      for all entries in  i_calctab
-        where ktgrm = i_calctab-ktgrm
-        and   spras = sy-langu.
-  endif.
-
-  if not lt_tvbo[] is initial.
-    select * into corresponding fields of table lt_tvbo
-        from tvbot
-        for all entries in lt_tvbo
-        where bonus = lt_tvbo-bonus
-        and   spras = sy-langu.
-  endif.
-
+  " Main processing loop for AT NEW / AT END logic
   loop at i_calctab into gs_calctab.
     clear: gs_output.
     lv_losgr = gs_calctab-losgr.
-    gs_output-vkorg     = gs_calctab-vkorg.
-    gs_output-cwmat     = gs_calctab-/cwm/xcwmat.
-    gs_output-maabc     = gs_calctab-maabc.
-    gs_output-bonus     = gs_calctab-bonus.
-    gs_output-mvgr1     = gs_calctab-mvgr1.
-    gs_output-mvgr2     = gs_calctab-mvgr2.
-    gs_output-mvgr3     = gs_calctab-mvgr3.
-    gs_output-mvgr4     = gs_calctab-mvgr4.
-    gs_output-mvgr5     = gs_calctab-mvgr5.
-    gs_output-aendr     = gs_calctab-ersda.
+
+    gs_output-fwaer_kpf = gs_calctab-fwaer_kpf.
+    gs_output-werks     = gs_calctab-werks.
+    gs_output-vkorg     = gs_calctab-vkorg. " Populated if I_VKORG is set & data found
+    gs_output-vtweg     = gs_calctab-vtweg. " Populated if I_VKORG is set & data found
+    gs_output-klvar     = gs_calctab-klvar.
+    gs_output-tvers     = gs_calctab-tvers.
+    gs_output-matnr     = gs_calctab-matnr.
+    gs_output-kadky     = gs_calctab-kadky.
     gs_output-prctr     = gs_calctab-prctr.
     gs_output-arbpl     = gs_calctab-arbpl.
     gs_output-plnnr     = gs_calctab-plnnr.
-    write gs_calctab-ersda to gs_output-aendr dd/mm/yyyy.
-    lv_objek = gs_calctab-matnr.
-    read table lt_kendetegn assigning <kendetegn> with key objek = lv_objek
-                                                           atinn = lv_dc_season
-                                                           binary search.
-    if sy-subrc = 0.
-      gs_output-season = <kendetegn>-atwtb.
-    endif.
-    read table lt_kendetegn assigning <kendetegn> with key objek = lv_objek
-                                                           atinn = lv_dc_segment
-                                                           binary search.
-    if sy-subrc = 0.
-      gs_output-segment = <kendetegn>-atwtb.
-    endif.
-    read table lt_kendetegn assigning <kendetegn> with key objek = lv_objek
-                                                           atinn = lv_dc_prisstr
-                                                           binary search.
-    if sy-subrc = 0.
-      gs_output-prisstrategi = <kendetegn>-atwtb.
-    endif.
+    gs_output-topniv    = i_topniv.
 
-    read table lt_kendetegn assigning <kendetegn> with key objek = lv_objek
-                                                           atinn = lv_dc_noglehul
-                                                           binary search.
-    if sy-subrc = 0.
-      gs_output-noglehul = <kendetegn>-atwtb.
-    endif.
-    read table lt_kendetegn assigning <kendetegn> with key objek = lv_objek
-                                                           atinn = lv_dc_varegruppe
-                                                           binary search.
-    if sy-subrc = 0.
-      gs_output-varegruppe = <kendetegn>-atwtb.
-    endif.
-    read table lt_kendetegn assigning <kendetegn> with key objek = lv_objek
-                                                           atinn = lv_dc_naeringsdeklaration
-                                                           binary search.
-    if sy-subrc = 0.
-      gs_output-naeringsdeklaration = <kendetegn>-atwtb.
-    endif.
-
-    read table lt_tvbo into ls_tvbo with key bonus = gs_calctab-bonus.
-    if sy-subrc = 0.
-      gs_output-bonust = ls_tvbo-vtext.
-    endif.
-
-    gs_output-ktgrm = gs_calctab-ktgrm.
-    read table lt_tvkm into ls_tvkm with key ktgrm = gs_calctab-ktgrm.
-    if sy-subrc = 0.
-      gs_output-ktgrmt = ls_tvkm-vtext.
-    endif.
-
-    lv_mvgr_key = 'gs_calctab-mvgr1'.
-    do 5 times.
-      lv_mvgr_key+15(1) = sy-index.
-      lv_mvgr_name+7(1) = sy-index.
-      lv_bezei+15(1) = sy-index.
-      assign (lv_mvgr_name) to <mvgr_tab>.
-      assign (lv_mvgr_key) to <mvgr_key>.
-      assign (lv_bezei) to <bezei>.
-      read table <mvgr_tab> assigning <mvgr> with key mvgr = <mvgr_key>.
-      if sy-subrc = 0.
-        <bezei> = <mvgr>-bezei.
-      else.
-        clear: <bezei>.
-      endif.
-    enddo.
-    clear: gs_output-stk_kar, gs_output-vgt_stk, gs_output-vgt_kar.
-    read table lt_marm into ls_marm with key matnr = gs_calctab-matnr
-                                             meinh = 'ST'.
-    if sy-subrc = 0 and
-        ls_marm-umren ne 0 and
-        ls_marm-umrez ne 0.
-      if gs_calctab-/cwm/xcwmat is initial.
-        gs_output-vgt_stk = ls_marm-umrez / ls_marm-umren.
-      else.
-        gs_output-stk_kar = ls_marm-umren / ls_marm-umrez.
-      endif.
-    endif.
-    if gs_calctab-/cwm/xcwmat is initial.
-      read table lt_marm into ls_marm with key matnr = gs_calctab-matnr
-                                               meinh = 'KAR'.
-      if sy-subrc = 0 and
-          ls_marm-umren ne 0.
-        gs_output-vgt_kar = ls_marm-umrez / ls_marm-umren.
-      endif.
-      if gs_output-vgt_stk ne 0 and
-          gs_output-vgt_kar ne 0.
-        gs_output-stk_kar = gs_output-vgt_kar / gs_output-vgt_stk.
-      endif.
-    else.
-      read table lt_marm into ls_marm with key matnr = gs_calctab-matnr
-                                               meinh = 'KG'.
-      if sy-subrc = 0 and
-          ls_marm-umren ne 0.
-        gs_output-vgt_kar = ls_marm-umren / ls_marm-umrez.
-        if gs_output-stk_kar ne 0.
-          gs_output-vgt_stk = gs_output-vgt_kar / gs_output-stk_kar.
-        endif.
-      endif.
-    endif.
+    SELECT SINGLE bukrs FROM t001k INTO gs_output-bukrs
+      WHERE bwkey = gs_calctab-bwkey. " Assumes Plant (WERKS) is Valuation Area (BWKEY)
+    IF sy-subrc <> 0. " Fallback if BWKEY in T001K is not WERKS or not found
+      SELECT SINGLE bukrs FROM t001k INTO gs_output-bukrs
+        WHERE werks = gs_calctab-werks.
+    ENDIF.
 
     at new kadky.
       refresh gi_sumtab.
       loop at gi_tckh3 assigning <tckh3>.
-        if sy-tabix > c_omkelem.
+        if sy-tabix > c_omkelem. " c_omkelem is likely 40, from global constants
           exit.
         endif.
         gs_sumtab-elemt = <tckh3>-elemt.
@@ -713,67 +464,62 @@ function z_fi_zrfi028n.
         gs_sumtab-elemt = <tckh3>-elemt.
         concatenate 'GS_CALCTAB-KST' <tckh3>-el_hv into lv_felt.
         assign (lv_felt) to <f>.
-        move <f> to <sum_kpf_dec>.
-        if gs_calctab-omrfak <> 0.
-          <sum_kpf_dec> = ( <sum_kpf_dec> / gs_calctab-omrfak ).
+        if <f> is assigned.
+          move <f> to <sum_kpf_dec>. " Moves value to GS_SUMTAB-KPF_DEC<g_decima>
+          if gs_calctab-omrfak <> 0 and gs_calctab-omrfak is not initial. " Avoid division by zero
+            <sum_kpf_dec> = ( <sum_kpf_dec> / gs_calctab-omrfak ).
+          endif.
+          collect gs_sumtab into gi_sumtab.
         endif.
-        collect gs_sumtab into gi_sumtab.
       endloop.
     else.
-      lv_felt = 'GS_SUMTAB-KPF_DEC' && g_decima. "CONCATENATE 'GS_SUMTAB-KPF_DEC' g_decima INTO lv_felt.
-      assign (lv_felt) to <sum_kpf_dec>.
-      loop at gi_tckh2 assigning <tckh2> where kstav <= gs_calctab-kstar
-                                           and kstab >= gs_calctab-kstar.
-        gs_sumtab-elemt = <tckh2>-elemt.
-        <sum_kpf_dec> = gs_calctab-wrtfw_kpf.
-        collect gs_sumtab into gi_sumtab.
-        exit.
-      endloop.
+      " This assignment should point to the correct component in gs_sumtab
+      gv_felt = 'GS_SUMTAB-KPF_DEC' && g_decima.
+      assign component gv_felt of structure gs_sumtab to <sum_kpf_dec>.
+      if <sum_kpf_dec> is assigned.
+        loop at gi_tckh2 assigning <tckh2> where kstav <= gs_calctab-kstar
+                                             and kstab >= gs_calctab-kstar.
+          gs_sumtab-elemt = <tckh2>-elemt.
+          <sum_kpf_dec> = gs_calctab-wrtfw_kpf.
+          collect gs_sumtab into gi_sumtab.
+          exit.
+        endloop.
+      endif.
     endif.
     at end of kadky.
-*     Materialetekster
-      read table gi_makt into gs_makt
-       with key matnr = gs_calctab-matnr binary search.
-      if sy-subrc ne 0.
-        lv_tabix = sy-tabix.
-        select single maktx from makt into gs_makt-maktx
-          where matnr = gs_calctab-matnr
-            and spras = sy-langu.
-        if sy-subrc ne 0.
-          select single maktx from makt into gs_makt-maktx
-            where matnr = gs_calctab-matnr.
-          if sy-subrc ne 0.
-            gs_makt-maktx = '???'.
+      clear gs_output-total.
+      data: lv_current_comp_value type zcurr13_5, " Matches KST001-020 type
+            lv_sum_kpf_dec_val    type p decimals g_decima. " To hold value from gs_sumtab's dynamic field
+
+      loop at gi_sumtab into gs_sumtab.
+        " Get the aggregated value from gs_sumtab's dynamic field (e.g., KPF_DEC2)
+        gv_felt = 'KPF_DEC' && g_decima. " Component name in gs_sumtab structure
+        assign component gv_felt of structure gs_sumtab to <f>.
+        if <f> is assigned.
+          lv_sum_kpf_dec_val = <f>.
+        else.
+          clear lv_sum_kpf_dec_val.
+        endif.
+
+        if lv_losgr <> 0 and lv_losgr is not initial. " Avoid division by zero
+          lv_current_comp_value = lv_sum_kpf_dec_val / lv_losgr.
+        else.
+          lv_current_comp_value = lv_sum_kpf_dec_val.
+        endif.
+
+        if gs_sumtab-elemt <= '020'. " Output KST001 to KST020
+          concatenate 'KST' gs_sumtab-elemt into lv_felt. " Component name in gs_output (e.g., KST001)
+          assign component lv_felt of structure gs_output to <output_kst>.
+          if sy-subrc = 0. " Check if field KSTnnn exists in gs_output
+            <output_kst> = lv_current_comp_value.
           endif.
         endif.
-        gs_makt-matnr = gs_calctab-matnr.
-        insert gs_makt into gi_makt index lv_tabix.
-      endif.
-*     Fyld skærmrække
-      gs_output-matnr     = gs_calctab-matnr.
-      gs_output-matxt     = gs_makt-maktx.
-      gs_output-kadky     = gs_calctab-kadky.
-      gs_output-fwaer_kpf = gs_calctab-fwaer_kpf.
-      gs_output-werks     = gs_calctab-werks.
-      gs_output-klvar     = gs_calctab-klvar.
-      gs_output-tvers     = gs_calctab-tvers.
-      clear gs_output-total.
-      loop at gi_sumtab into gs_sumtab to c_omkelem.
-        concatenate 'GS_OUTPUT-KST' gs_sumtab-elemt into lv_felt.
-        assign (lv_felt) to <output_kst>.
-        if lv_losgr <> 0.
-          <kpf_dec> = <sum_kpf_dec> / lv_losgr.
-          <sum_kpf_dec> = <kpf_dec>.
-        endif.
-        <output_kst> = <sum_kpf_dec>.
-        add <output_kst> to gs_output-total.
+        add lv_current_comp_value to gs_output-total. " Sum all components for TOTAL
       endloop.
       append gs_output to et_output.
     endat.
 
   endloop.
-
-  et_tckh1[] = gi_tckh1[].
 
   sort et_output.
 
