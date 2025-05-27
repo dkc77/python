@@ -45,7 +45,12 @@ def merge_files_to_data_mart(source_folders, output_file_path, file_pattern="*.c
                 else:
                     print(f"    Skipping unsupported file type: {file_path.name}")
                     continue
-                
+
+                # Check if 'Forecast' column exists and 'Currency Rate' is missing
+                if 'Forecast' in df.columns and 'Currency Rate' not in df.columns:
+                    print(f"    Copying 'Forecast' to 'Currency Rate' for {file_path.name}")
+                    df['Currency Rate'] = df['Forecast']
+
                 all_dataframes.append(df)
                 print(f"    Successfully read {file_path.name} ({len(df)} rows)")
             except Exception as e:

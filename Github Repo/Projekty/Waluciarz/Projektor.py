@@ -19,6 +19,9 @@ os.makedirs(output_folder, exist_ok=True)
 # Read data
 df = pd.read_csv(file_path, parse_dates=['Date'])
 
+# Fill NaN values in 'Currency Rate' with 0 (or another appropriate value)
+df['Currency Rate'] = df['Currency Rate'].fillna(0)
+
 # Prepare list to collect all forecasts
 all_forecasts = []
 
